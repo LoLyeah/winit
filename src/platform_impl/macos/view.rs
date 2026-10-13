@@ -339,8 +339,11 @@ declare_class!(
             trace_scope!("unmarkText");
             *self.ivars().marked_text.borrow_mut() = NSMutableAttributedString::new();
 
-            let input_context = self.inputContext().expect("input context");
-            input_context.discardMarkedText();
+            // macOS 27: `-[NSView inputContext]` can be nil; degrade gracefully
+            // instead of panicking (Suramak fork of winit 0.30.13).
+            if let Some(input_context) = self.inputContext() {
+                input_context.discardMarkedText();
+            }
 
             self.queue_event(WindowEvent::Ime(Ime::Preedit(String::new(), None)));
             if self.is_ime_enabled() {
@@ -849,8 +852,7 @@ impl WinitView {
 
     fn current_input_source(&self) -> String {
         self.inputContext()
-            .expect("input context")
-            .selectedKeyboardInputSource()
+            .and_then(|input_context| input_context.selectedKeyboardInputSource())
             .map(|input_source| input_source.to_string())
             .unwrap_or_default()
     }
@@ -898,8 +900,11 @@ impl WinitView {
     pub(super) fn set_ime_cursor_area(&self, position: NSPoint, size: NSSize) {
         self.ivars().ime_position.set(position);
         self.ivars().ime_size.set(size);
-        let input_context = self.inputContext().expect("input context");
-        input_context.invalidateCharacterCoordinates();
+        // macOS 27: `-[NSView inputContext]` can be nil; degrade gracefully
+        // instead of panicking (Suramak fork of winit 0.30.13).
+        if let Some(input_context) = self.inputContext() {
+            input_context.invalidateCharacterCoordinates();
+        }
     }
 
     /// Reset modifiers and emit a synthetic ModifiersChanged event if deemed necessary.
