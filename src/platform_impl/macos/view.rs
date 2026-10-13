@@ -466,7 +466,11 @@ declare_class!(
             // we must send the `KeyboardInput` event during IME if it triggered
             // `doCommandBySelector`. (doCommandBySelector means that the keyboard input
             // is not handled by IME and should be handled by the application)
-            if self.ivars().ime_allowed.get() {
+            //
+            // macOS 27: skip this without an input context — the IME interpreter
+            // cannot run, and keys fall through to the plain KeyboardInput path
+            // below (Suramak fork of winit 0.30.13).
+            if self.ivars().ime_allowed.get() && self.inputContext().is_some() {
                 let events_for_nsview = NSArray::from_slice(&[&*event]);
                 unsafe { self.interpretKeyEvents(&events_for_nsview) };
 
